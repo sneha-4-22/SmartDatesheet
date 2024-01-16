@@ -37,4 +37,6 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 ### Contributors
 
 - <img src="https://github.com/Durga200422.png" alt="Narapureddy Durga Prasad" width="20" height="20" style="border-radius: 50%;"> [Narapureddy Durga Prasad](https://github.com/Durga200422)
+- <img src="https://github.com/sneha-4-22.png" alt="Sneha Kumari" width="20" height="20" style="border-radius: 50%;"> [Sneha](https://github.com/sneha-4-22)
+
 
