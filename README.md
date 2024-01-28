@@ -13,4 +13,3 @@ npm run dev
 - <img src="https://github.com/Shivani-Sharma-23.png" alt="Shivani Sharma" width="20" height="20" style="border-radius: 50%;"> [Shivani](https://github.com/Shivani-Sharma-23)
 - <img src="https://github.com/sneha-4-22.png" alt="Shivani Sharma" width="20" height="20" style="border-radius: 50%;"> [Sneha](https://github.com/sneha-4-22)
 
->>>>>>> b2c0dd79f89de157e98ba42e484db36ec2c174b6
