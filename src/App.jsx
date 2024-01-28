@@ -5,6 +5,7 @@ const App = () => {
   const [endDate, setEndDate] = useState('');
   const [gapDays, setGapDays] = useState('');
   const [selectedTerm, setSelectedTerm] = useState('midterm'); 
+
   const handleStartDateChange = (e) => {
     setStartDate(e.target.value);
   };
@@ -18,8 +19,40 @@ const App = () => {
     setGapDays(e.target.value === 'midterm' ? '0' : '2');
   };
 
+  const isHoliday = (date) => {
+    const holidayList = ['2024-01-01', '2024-07-04'];
+    return holidayList.includes(date);
+  };
+  const isWeekend = (date) => {
+    const dayOfWeek = new Date(date).getDay();
+    return dayOfWeek === 0  || dayOfWeek === 6 ;
+  };
+
   const handleGenerateSchedule = () => {
-    console.log(`Generating ${selectedTerm} schedule from ${startDate} to ${endDate} with a gap of ${gapDays} days`);
+    if (!startDate || !endDate) {
+      alert("Please enter valid dates");
+      return;
+    }
+  
+    const gap = parseInt(gapDays);
+  
+    const scheduleDates = generateScheduleDates(startDate, endDate, gap);
+  
+    const filteredDates = scheduleDates.filter(date => !isHoliday(date) && !isWeekend(date));
+  
+    console.log(`Generating ${selectedTerm} schedule from ${startDate} to ${endDate} with a gap of ${gap} days. Schedule dates: `, filteredDates);
+  };
+
+  const generateScheduleDates = (start, end, gap) => {
+    const scheduleDates = [];
+    let currentDate = new Date(start);
+  
+    while (currentDate <= new Date(end)) {
+      scheduleDates.push(currentDate.toISOString().split('T')[0]);
+      currentDate.setDate(currentDate.getDate() + gap);
+    }
+  
+    return scheduleDates;
   };
 
   return (
@@ -54,9 +87,9 @@ const App = () => {
           type="number"
           id="gapDaysInput"
           value={gapDays}
-          onChange={() => {}} 
+          onChange={(e) => setGapDays(e.target.value)}
           style={styles.input}
-          disabled
+          disabled={selectedTerm === 'midterm'} // Enable only if the term is 'endterm'
         />
       </div>
 
@@ -77,6 +110,7 @@ const App = () => {
     </div>
   );
 };
+
 const styles = {
   container: {
     marginTop: '60px',
@@ -119,10 +153,6 @@ const styles = {
     borderRadius: '5px',
     cursor: 'pointer',
   },
-  gapDaysContainer: {
-    marginBottom: '20px',
-  },
-
   termSelector: {
     marginBottom: '20px',
   },
