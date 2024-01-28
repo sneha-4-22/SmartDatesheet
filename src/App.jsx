@@ -4,7 +4,7 @@ const App = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [gapDays, setGapDays] = useState('');
-
+  const [selectedTerm, setSelectedTerm] = useState('midterm'); 
   const handleStartDateChange = (e) => {
     setStartDate(e.target.value);
   };
@@ -13,13 +13,13 @@ const App = () => {
     setEndDate(e.target.value);
   };
 
-  const handleGapDaysChange = (e) => {
-    setGapDays(e.target.value);
+  const handleTermChange = (e) => {
+    setSelectedTerm(e.target.value);
+    setGapDays(e.target.value === 'midterm' ? '0' : '2');
   };
 
   const handleGenerateSchedule = () => {
-    // Implement logic to generate schedule based on the selected dates and gap days
-    console.log(`Generating schedule from ${startDate} to ${endDate} with a gap of ${gapDays} days`);
+    console.log(`Generating ${selectedTerm} schedule from ${startDate} to ${endDate} with a gap of ${gapDays} days`);
   };
 
   return (
@@ -54,19 +54,32 @@ const App = () => {
           type="number"
           id="gapDaysInput"
           value={gapDays}
-          onChange={handleGapDaysChange}
+          onChange={() => {}} 
           style={styles.input}
+          disabled
         />
+      </div>
+
+      <div style={styles.termSelector}>
+        <label style={styles.label} htmlFor="termSelector">Select Term: </label>
+        <select
+          id="termSelector"
+          value={selectedTerm}
+          onChange={handleTermChange}
+          style={styles.input}
+        >
+          <option value="midterm">Mid-Term</option>
+          <option value="endterm">End-Term</option>
+        </select>
       </div>
 
       <button style={styles.button} onClick={handleGenerateSchedule}>Generate Schedule</button>
     </div>
   );
 };
-
 const styles = {
   container: {
-    marginTop: '50px',
+    marginTop: '60px',
     textAlign: 'center',
     padding: '20px',
     backgroundColor: '#f0f0f0',
@@ -105,6 +118,13 @@ const styles = {
     fontSize: '16px',
     borderRadius: '5px',
     cursor: 'pointer',
+  },
+  gapDaysContainer: {
+    marginBottom: '20px',
+  },
+
+  termSelector: {
+    marginBottom: '20px',
   },
 };
 
