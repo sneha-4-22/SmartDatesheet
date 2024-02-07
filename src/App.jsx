@@ -76,7 +76,7 @@ const App = () => {
   
     if (selectedTerm === 'midterm' && gapDays === '0') {
       const subjects = generateSubjects(selectedTerm);
-      const scheduleDates = [startDate, endDate]; // Only two dates for midterm with no gap
+      const scheduleDates = [startDate, endDate]; 
       const generatedSchedule = scheduleDates.map((date, index) => ({
         date,
         subject: subjects[index % subjects.length]
