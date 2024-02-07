@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
-import html2canvas from 'html2canvas';
+import React, { useState, useRef } from 'react';
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const App = () => {
   const [startDate, setStartDate] = useState('');
@@ -8,8 +8,7 @@ const App = () => {
   const [gapDays, setGapDays] = useState('');
   const [selectedTerm, setSelectedTerm] = useState('midterm');
   const [schedule, setSchedule] = useState([]);
-  const scheduleRef = useRef();
-
+  const scheduleRef = useRef(null);
   const handleStartDateChange = (e) => {
     setStartDate(e.target.value);
   };
@@ -33,77 +32,95 @@ const App = () => {
     return dayOfWeek === 0 || dayOfWeek === 6;
   };
 
+  const generateScheduleDates = (start, end, gap) => {
+    const scheduleDates = [];
+    
+    gap = parseInt(gap);
+    if (isNaN(gap) || gap <= 0) {
+      console.error('Invalid gap value');
+      return scheduleDates;
+    }
+  
+    let currentDate = new Date(start);
+  
+    if (!(currentDate instanceof Date && !isNaN(currentDate))) {
+      console.error('Invalid start date');
+      return scheduleDates;
+    }
+    const endDate = new Date(end);
+    if (!(endDate instanceof Date && !isNaN(endDate))) {
+      console.error('Invalid end date');
+      return scheduleDates;
+    }
+  
+    while (currentDate <= endDate) {
+      scheduleDates.push(currentDate.toISOString().split('T')[0]);
+      currentDate.setDate(currentDate.getDate() + gap);
+    }
+  
+    return scheduleDates;
+  };
+  
+  const generateSubjects = (term) => {
+    return term === 'midterm'
+      ? ['LWH128B', 'LWH129B', 'LWH130B', 'LWH131B', 'LWH132B', 'LWH133B','CDO106']
+      : ['LWH128B', 'LWH129B', 'LWH130B', 'LWH131B', 'LWH132B', 'LWH133B','CDO106'];
+  };
+
+ 
   const handleGenerateSchedule = () => {
     if (!startDate || !endDate) {
       alert("Please enter valid dates");
       return;
     }
-
-    const gap = parseInt(gapDays);
-
-    const scheduleDates = generateScheduleDates(startDate, endDate, gap);
-
-    const filteredDates = scheduleDates.filter(date => !isHoliday(date) && !isWeekend(date));
-
-    const subjects = generateSubjects(selectedTerm);
-
-    const generatedSchedule = filteredDates.map((date, index) => ({
-      date,
-      subject: subjects[index % subjects.length]
-    }));
-
-    setSchedule(generatedSchedule);
-
-    console.log(`Generating ${selectedTerm} schedule from ${startDate} to ${endDate} with a gap of ${gap} days. Schedule dates: `, generatedSchedule);
-  };
-
-  useEffect(() => {
-    // Update the schedule table when the schedule state changes
-    if (scheduleRef.current) {
-      scheduleRef.current.innerHTML = ''; // Clear the table
-      schedule.forEach(entry => {
-        const row = document.createElement('tr');
-        const dateCell = document.createElement('td');
-        dateCell.textContent = entry.date;
-        const subjectCodeCell = document.createElement('td');
-        subjectCodeCell.textContent = entry.subject;
-        const subjectNameCell = document.createElement('td');
-        subjectNameCell.textContent = entry.subject === 'CDO106' ? 'Professional Communication Law - II' : 'Subject Name';
-        row.appendChild(dateCell);
-        row.appendChild(subjectCodeCell);
-        row.appendChild(subjectNameCell);
-        scheduleRef.current.appendChild(row);
-      });
+  
+    if (selectedTerm === 'midterm' && gapDays === '0') {
+      const subjects = generateSubjects(selectedTerm);
+      const scheduleDates = [startDate, endDate]; // Only two dates for midterm with no gap
+      const generatedSchedule = scheduleDates.map((date, index) => ({
+        date,
+        subject: subjects[index % subjects.length]
+      }));
+      setSchedule(generatedSchedule);
+      console.log(`Generating ${selectedTerm} schedule from ${startDate} to ${endDate} with no gap. Schedule dates: `, generatedSchedule);
+      generatePDF();
+    } else {
+      const gap = parseInt(gapDays);
+      const scheduleDates = generateScheduleDates(startDate, endDate, gap);
+      const filteredDates = scheduleDates.filter(date => !isHoliday(date) && !isWeekend(date));
+      const subjects = generateSubjects(selectedTerm);
+      const generatedSchedule = filteredDates.map((date, index) => ({
+        date,
+        subject: subjects[index % subjects.length]
+      }));
+      setSchedule(generatedSchedule);
+      console.log(`Generating ${selectedTerm} schedule from ${startDate} to ${endDate} with a gap of ${gap} days. Schedule dates: `, generatedSchedule);
+      generatePDF();
     }
-  }, [schedule]);
-
-  const generateScheduleDates = (start, end, gap) => {
-    const scheduleDates = [];
-    let currentDate = new Date(start);
-
-    while (currentDate <= new Date(end)) {
-      scheduleDates.push(currentDate.toISOString().split('T')[0]);
-      currentDate.setDate(currentDate.getDate() + gap);
-    }
-
-    return scheduleDates;
   };
-
-  const generateSubjects = (term) => {
-    return term === 'midterm'
-      ? ['LWH128B', 'LWH129B', 'LWH130B', 'LWH131B', 'LWH132B', 'LWH133B']
-      : ['CDO106'];
-  };
-
-  const handleDownloadPDF = () => {
-    const input = scheduleRef.current;
-    html2canvas(input)
+  
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const scheduleTable = scheduleRef.current;
+    const { width, height } = scheduleTable.getBoundingClientRect();
+  
+    html2canvas(scheduleTable)
       .then((canvas) => {
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF();
-        pdf.addImage(imgData, 'PNG', 0, 0);
-        pdf.save('datesheet.pdf');
+        const imgWidth = 210; 
+        const imgHeight = (height * imgWidth) / width; 
+        doc.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        doc.save('datesheet.pdf');
       });
+  };
+  const subjectNames = {
+    'LWH128B': 'Legal Methods',
+    'LWH129B': 'Law of Contract - II',
+    'LWH130B': 'Political Science - II',
+    'LWH131B': 'Sociology - II',
+    'LWH132B': 'Economics - II',
+    'LWH133B': 'Legal English - II',
+    'CDO106': 'Professional Communication Law - II'
   };
 
   return (
@@ -140,7 +157,7 @@ const App = () => {
           value={gapDays}
           onChange={(e) => setGapDays(e.target.value)}
           style={styles.input}
-          disabled={selectedTerm === 'midterm'} // Enable only if the term is 'endterm'
+          disabled={selectedTerm === 'midterm'} 
         />
       </div>
 
@@ -159,9 +176,7 @@ const App = () => {
 
       <button style={styles.button} onClick={handleGenerateSchedule}>Generate Schedule</button>
 
-      <button style={styles.button} onClick={handleDownloadPDF}>Download PDF</button>
-
-      <div>
+      <div ref={scheduleRef}>
         <h2>Schedule:</h2>
         <table>
           <thead>
@@ -171,7 +186,16 @@ const App = () => {
               <th>Subject Name</th>
             </tr>
           </thead>
-          <tbody ref={scheduleRef}></tbody>
+          <tbody>
+            {schedule.map((entry, index) => (
+              <tr key={index}>
+                <td>{entry.date}</td>
+                <td>{entry.subject}</td>
+                
+                <td>{subjectNames[entry.subject]}</td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       </div>
     </div>
