@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import * as XLSX from 'xlsx';
 
 const App = () => {
   const [startDate, setStartDate] = useState('');
@@ -9,6 +10,7 @@ const App = () => {
   const [selectedTerm, setSelectedTerm] = useState('midterm');
   const [schedule, setSchedule] = useState([]);
   const scheduleRef = useRef(null);
+
   const handleStartDateChange = (e) => {
     setStartDate(e.target.value);
   };
@@ -83,7 +85,7 @@ const App = () => {
       }));
       setSchedule(generatedSchedule);
       console.log(`Generating ${selectedTerm} schedule from ${startDate} to ${endDate} with no gap. Schedule dates: `, generatedSchedule);
-      generatePDF();
+      generateExcel();
     } else {
       const gap = parseInt(gapDays);
       const scheduleDates = generateScheduleDates(startDate, endDate, gap);
@@ -95,24 +97,28 @@ const App = () => {
       }));
       setSchedule(generatedSchedule);
       console.log(`Generating ${selectedTerm} schedule from ${startDate} to ${endDate} with a gap of ${gap} days. Schedule dates: `, generatedSchedule);
-      generatePDF();
+      generateExcel();
     }
   };
+  const generateExcel = () => {
+    const data = schedule.map(entry => ({
+      Date: entry.date,
+      'Subject Code': entry.subject,
+      'Subject Name': subjectNames[entry.subject]
+    }));
   
-  const generatePDF = () => {
-    const doc = new jsPDF();
-    const scheduleTable = scheduleRef.current;
-    const { width, height } = scheduleTable.getBoundingClientRect();
-  
-    html2canvas(scheduleTable)
-      .then((canvas) => {
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = 210; 
-        const imgHeight = (height * imgWidth) / width; 
-        doc.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-        doc.save('datesheet.pdf');
-      });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Schedule");
+    XLSX.writeFile(wb, 'schedule.xlsx');
   };
+  
+  // const generateExcel = () => {
+  //   const ws = XLSX.utils.json_to_sheet(schedule);
+  //   const wb = XLSX.utils.book_new();
+  //   XLSX.utils.book_append_sheet(wb, ws, "Schedule");
+  //   XLSX.writeFile(wb, 'schedule.xlsx');
+  // };
   const subjectNames = {
     'LWH128B': 'Legal Methods',
     'LWH129B': 'Law of Contract - II',
