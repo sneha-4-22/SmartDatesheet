@@ -1,15 +1,20 @@
-import React, { useState, useRef } from 'react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import React, { useState } from 'react';
+import { FileDrop } from 'react-file-drop';
 import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 const App = () => {
+  const [file, setFile] = useState(null);
+  const [schedule, setSchedule] = useState([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [gapDays, setGapDays] = useState('');
-  const [selectedTerm, setSelectedTerm] = useState('midterm');
-  const [schedule, setSchedule] = useState([]);
-  const scheduleRef = useRef(null);
+
+  const handleFileDrop = (files, event) => {
+    if (files.length === 0) return;
+    const selectedFile = files[0];
+    setFile(selectedFile);
+  };
 
   const handleStartDateChange = (e) => {
     setStartDate(e.target.value);
@@ -19,170 +24,210 @@ const App = () => {
     setEndDate(e.target.value);
   };
 
-  const handleTermChange = (e) => {
-    setSelectedTerm(e.target.value);
-    setGapDays(e.target.value === 'midterm' ? '0' : '2');
+  const handleGapDaysChange = (e) => {
+    setGapDays(e.target.value);
   };
 
-  const isHoliday = (date) => {
-    const holidayList = ['2024-01-01', '2024-07-04'];
-    return holidayList.includes(date);
-  };
-
-  const isWeekend = (date) => {
-    const dayOfWeek = new Date(date).getDay();
-    return dayOfWeek === 0 || dayOfWeek === 6;
-  };
-
-  const generateScheduleDates = (start, end, gap) => {
-    const scheduleDates = [];
+  
+  const manipulateExcelData = (json, startDate) => {
+    const modifiedData = [];
+    let currentSemester = '';
     
-    gap = parseInt(gap);
-    if (isNaN(gap) || gap <= 0) {
-      console.error('Invalid gap value');
-      return scheduleDates;
+    json.forEach((row, rowIndex) => {
+        console.log('Row:', row);
+        
+        // Skip irrelevant rows
+        if (!row || row.length === 0 || row.length === 1) {
+            console.log('Skipping row:', row);
+            return;
+        }
+        
+        // Check if the row contains a semester header
+        if (typeof row === 'string' && row.startsWith('SEMESTER-')) {
+            console.log('Found semester header:', row);
+            currentSemester = row;
+        } else if (Array.isArray(row) && row.length >= 2 && row[0] && row[1]) {
+            const subjectCode = row[0];
+            const subjectName = row[1];
+            let date = '';
+            if (row.length > 2) {
+                date = row[2];
+            } else {
+                // Generate exam dates if not provided in the Excel sheet
+                const examDates = generateExamDates(startDate, 1); // Generate 1 exam date
+                if (examDates.length > 0) {
+                    date = examDates[0].toLocaleDateString(); // Get the date in string format
+                }
+            }
+            
+            // Check if the subject code is not 'SUBJECT CODES' and if date is valid
+            if (subjectCode !== 'SUBJECT CODES' && subjectName !== 'SUBJECT NAME') {
+                console.log('Adding row to modified data:', row);
+                modifiedData.push({ semester: currentSemester, subjectCode, subjectName, date });
+            } else {
+                console.log('Skipping row:', row);
+            }
+        } else {
+            console.log('Skipping row:', row);
+        }
+    });
+    
+    console.log('Modified Data:', modifiedData);
+    return modifiedData;
+};
+
+
+// Integration in your code
+const handleGenerateSchedule = () => {
+    if (!file) {
+        alert("Please upload an Excel file");
+        return;
     }
-  
-    let currentDate = new Date(start);
-  
-    if (!(currentDate instanceof Date && !isNaN(currentDate))) {
-      console.error('Invalid start date');
-      return scheduleDates;
+
+    if (!startDate || !endDate || !gapDays) {
+        alert("Please enter valid start date, end date, and gap days");
+        return;
     }
-    const endDate = new Date(end);
-    if (!(endDate instanceof Date && !isNaN(endDate))) {
-      console.error('Invalid end date');
-      return scheduleDates;
-    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      
+        // Manipulate the Excel data and generate the schedule
+        const modifiedData = manipulateExcelData(json, startDate);
+        console.log('Modified Data:', modifiedData); // Log the modifiedData array
+        setSchedule(modifiedData);
+        generateExcel(modifiedData);
+    };
+    reader.readAsArrayBuffer(file);
+};
+
+
+
+
+
+
+
+  const generateExcel = (data) => {
+    // Create a new worksheet
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Semester', 'Subject Code', 'Subject Name', 'Date']
+    ]);
   
-    while (currentDate <= endDate) {
-      scheduleDates.push(currentDate.toISOString().split('T')[0]);
-      currentDate.setDate(currentDate.getDate() + gap);
-    }
+    // Iterate through the data and populate the worksheet
+    let rowIndex = 1; // Start from row 1 to skip headers
+    data.forEach(item => {
+      const { semester, subjectCode, subjectName, date } = item;
+      XLSX.utils.sheet_add_aoa(ws, [[semester, subjectCode, subjectName, date]], {origin: `A${rowIndex}`});
+      rowIndex++;
+    });
   
-    return scheduleDates;
-  };
+    // Create a new workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Modified Schedule");
   
-  const generateSubjects = (term) => {
-    return term === 'midterm'
-      ? ['LWH128B', 'LWH129B', 'LWH130B', 'LWH131B', 'LWH132B', 'LWH133B','CDO106']
-      : ['LWH128B', 'LWH129B', 'LWH130B', 'LWH131B', 'LWH132B', 'LWH133B','CDO106'];
+    // Convert the workbook to a binary string
+    const wbout = XLSX.write(wb, { type: 'binary' });
+  
+    // Convert binary string to Blob
+    const blob = new Blob([s2ab(wbout)], { type: 'application/octet-stream' });
+  
+    // Create download link
+    const url = URL.createObjectURL(blob);
+  
+    // Create anchor element and trigger download
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'modified_schedule.xlsx';
+    a.click();
+  
+    // Release the object URL
+    URL.revokeObjectURL(url);
   };
 
- 
-  const handleGenerateSchedule = () => {
-    if (!startDate || !endDate) {
-      alert("Please enter valid dates");
-      return;
+  // Utility function to convert string to array buffer
+  const s2ab = (s) => {
+    const buf = new ArrayBuffer(s.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+    return buf;
+  };
+
+  const isValidDate = (dateString) => {
+    const dateObject = new Date(dateString);
+    const isValid = !isNaN(dateObject.getTime());
+    console.log('Date:', dateString, 'isValid:', isValid);
+    return isValid;
+};
+
+const generateExamDates = (startDate, numExams) => {
+  const examDates = [];
+  let currentDate = new Date(startDate);
+  
+  for (let i = 0; i < numExams; i++) {
+    // Skip Sundays and even Saturdays
+    while (currentDate.getDay() === 0 || currentDate.getDay() % 2 === 0) {
+      currentDate.setDate(currentDate.getDate() + 1);
     }
+    
+    examDates.push(new Date(currentDate)); // Store a copy of the date
+    currentDate.setDate(currentDate.getDate() + 1); // Move to the next day
+  }
   
-    if (selectedTerm === 'midterm' && gapDays === '0') {
-      const subjects = generateSubjects(selectedTerm);
-      const scheduleDates = [startDate, endDate]; 
-      const generatedSchedule = scheduleDates.map((date, index) => ({
-        date,
-        subject: subjects[index % subjects.length]
-      }));
-      setSchedule(generatedSchedule);
-      console.log(`Generating ${selectedTerm} schedule from ${startDate} to ${endDate} with no gap. Schedule dates: `, generatedSchedule);
-      generateExcel();
-    } else {
-      const gap = parseInt(gapDays);
-      const scheduleDates = generateScheduleDates(startDate, endDate, gap);
-      const filteredDates = scheduleDates.filter(date => !isHoliday(date) && !isWeekend(date));
-      const subjects = generateSubjects(selectedTerm);
-      const generatedSchedule = filteredDates.map((date, index) => ({
-        date,
-        subject: subjects[index % subjects.length]
-      }));
-      setSchedule(generatedSchedule);
-      console.log(`Generating ${selectedTerm} schedule from ${startDate} to ${endDate} with a gap of ${gap} days. Schedule dates: `, generatedSchedule);
-      generateExcel();
-    }
-  };
-  const generateExcel = () => {
-    const data = schedule.map(entry => ({
-      Date: entry.date,
-      'Subject Code': entry.subject,
-      'Subject Name': subjectNames[entry.subject]
-    }));
-  
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Schedule");
-    XLSX.writeFile(wb, 'schedule.xlsx');
-  };
-  
-  // const generateExcel = () => {
-  //   const ws = XLSX.utils.json_to_sheet(schedule);
-  //   const wb = XLSX.utils.book_new();
-  //   XLSX.utils.book_append_sheet(wb, ws, "Schedule");
-  //   XLSX.writeFile(wb, 'schedule.xlsx');
-  // };
-  const subjectNames = {
-    'LWH128B': 'Legal Methods',
-    'LWH129B': 'Law of Contract - II',
-    'LWH130B': 'Political Science - II',
-    'LWH131B': 'Sociology - II',
-    'LWH132B': 'Economics - II',
-    'LWH133B': 'Legal English - II',
-    'CDO106': 'Professional Communication Law - II'
-  };
+  return examDates;
+};
+
+
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.heading}>Automated Datesheet Generator</h1>
+      <h1>Automated Datesheet Generator</h1>
 
-      <div style={styles.datePickerContainer}>
-        <label style={styles.label} htmlFor="startDatePicker">Select Start Date: </label>
+      <FileDrop onDrop={handleFileDrop} style={styles.fileDropZone}>
+        <div style={styles.dropZoneContent}>
+          <p>Drop Excel File Here</p>
+        </div>
+      </FileDrop>
+      
+      {file && <span>{file.name}</span>}
+
+      <div>
+        <label htmlFor="startDatePicker">Start Date:</label>
         <input
           type="date"
           id="startDatePicker"
           value={startDate}
           onChange={handleStartDateChange}
-          style={styles.input}
         />
       </div>
 
-      <div style={styles.datePickerContainer}>
-        <label style={styles.label} htmlFor="endDatePicker">Select End Date: </label>
+      <div>
+        <label htmlFor="endDatePicker">End Date:</label>
         <input
           type="date"
           id="endDatePicker"
           value={endDate}
           onChange={handleEndDateChange}
-          style={styles.input}
         />
       </div>
 
-      <div style={styles.gapDaysContainer}>
-        <label style={styles.label} htmlFor="gapDaysInput">Number of Gap Days: </label>
+      <div>
+        <label htmlFor="gapDaysInput">Gap Days:</label>
         <input
           type="number"
           id="gapDaysInput"
           value={gapDays}
-          onChange={(e) => setGapDays(e.target.value)}
-          style={styles.input}
-          disabled={selectedTerm === 'midterm'} 
+          onChange={handleGapDaysChange}
         />
       </div>
 
-      <div style={styles.termSelector}>
-        <label style={styles.label} htmlFor="termSelector">Select Term: </label>
-        <select
-          id="termSelector"
-          value={selectedTerm}
-          onChange={handleTermChange}
-          style={styles.input}
-        >
-          <option value="midterm">Mid-Term</option>
-          <option value="endterm">End-Term</option>
-        </select>
-      </div>
+      <button onClick={handleGenerateSchedule} style={styles.button}>Generate Schedule</button>
 
-      <button style={styles.button} onClick={handleGenerateSchedule}>Generate Schedule</button>
-
-      <div ref={scheduleRef}>
+      <div>
         <h2>Schedule:</h2>
         <table>
           <thead>
@@ -190,18 +235,20 @@ const App = () => {
               <th>Date</th>
               <th>Subject Code</th>
               <th>Subject Name</th>
+              <th>Semester</th>
             </tr>
           </thead>
           <tbody>
-            {schedule.map((entry, index) => (
-              <tr key={index}>
-                <td>{entry.date}</td>
-                <td>{entry.subject}</td>
-                
-                <td>{subjectNames[entry.subject]}</td>
-              </tr>
-            ))}
-          </tbody>
+    {schedule.map((entry, index) => (
+        <tr key={index}>
+            <td>{entry.date}</td>
+            <td>{entry.subjectCode}</td>
+            <td>{entry.subjectName}</td>
+            <td>{entry.semester}</td>
+        </tr>
+    ))}
+</tbody>
+
         </table>
       </div>
     </div>
@@ -210,7 +257,6 @@ const App = () => {
 
 const styles = {
   container: {
-    marginTop: '60px',
     textAlign: 'center',
     padding: '20px',
     backgroundColor: '#f0f0f0',
@@ -218,29 +264,19 @@ const styles = {
     maxWidth: '400px',
     margin: 'auto',
   },
-  heading: {
-    fontSize: '24px',
-    marginBottom: '20px',
-    color: 'purple',
-  },
-  datePickerContainer: {
-    marginBottom: '15px',
-  },
-  label: {
-    display: 'block',
-    marginBottom: '5px',
-    fontSize: '16px',
-    color: '#555',
-  },
-  input: {
+  fileDropZone: {
     width: '100%',
-    padding: '8px',
+    height: '200px',
+    border: '2px dashed #aaa',
     borderRadius: '5px',
-    border: '1px solid #ccc',
-    fontSize: '16px',
-  },
-  gapDaysContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    cursor: 'pointer',
     marginBottom: '20px',
+  },
+  dropZoneContent: {
+    textAlign: 'center',
   },
   button: {
     backgroundColor: 'purple',
@@ -249,10 +285,7 @@ const styles = {
     fontSize: '16px',
     borderRadius: '5px',
     cursor: 'pointer',
-    marginRight: '10px',
-  },
-  termSelector: {
-    marginBottom: '20px',
+    marginTop: '20px',
   },
 };
 
