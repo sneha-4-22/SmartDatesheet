@@ -33,6 +33,7 @@ const App = () => {
         const subjectCode = row[0];
         const subjectName = row[1];
         if (subjectCode === 'SUBJECT CODES' && subjectName === 'SUBJECT NAME') {
+          modifiedData.push(['', '', '']);
           currentDate = new Date(startDate);
           return;
         }
