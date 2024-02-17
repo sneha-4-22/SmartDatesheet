@@ -40,7 +40,6 @@ const App = () => {
         while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
           currentDate.setDate(currentDate.getDate() + 1);
         }
-  
         modifiedData.push({ date: formattedDate, subjectCode, subjectName, semester: currentSemester });
         currentDate.setDate(currentDate.getDate() + 1); 
       }
@@ -48,10 +47,6 @@ const App = () => {
   
     return modifiedData;
   };
-  
-  
- 
-
 const handleGenerateSchedule = () => {
     if (!file) {
         alert("Please upload an Excel file");
@@ -108,19 +103,6 @@ const handleGenerateSchedule = () => {
     console.log('Date:', dateString, 'isValid:', isValid);
     return isValid;
 };
-// const generateExamDates = (startDate, numExams) => {
-//   const examDates = [];
-//   let currentDate = new Date(startDate);
-//   let daysToAdd = 1; 
-//   for (let i = 0; i < numExams; i++) {
-//     while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
-//       currentDate.setDate(currentDate.getDate() + 1); 
-//     }
-//     examDates.push(new Date(currentDate));
-//     currentDate.setDate(currentDate.getDate() + daysToAdd);
-//   }
-//   return examDates;
-// };
 
   return (
     <div style={styles.container}>
