@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { FileDrop } from 'react-file-drop';
 import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
 const App = () => {
   const [file, setFile] = useState(null);
   const [schedule, setSchedule] = useState([]);
@@ -24,27 +23,34 @@ const App = () => {
   };
   const manipulateExcelData = (json, startDate) => {
     const modifiedData = [];
-    let currentSemester = '';
     let currentDate = new Date(startDate);
-
+    let currentSemester = '';
     json.forEach((row, rowIndex) => {
-        if (!row || row.length === 0 || row.length === 1) {
-            return; 
+      if (typeof row === 'string' && row.startsWith('SEMESTER-')) {
+        currentSemester = row;
+        currentDate = new Date(startDate); 
+      } else if (Array.isArray(row) && row.length >= 2 && row[0] && row[1]) {
+        const subjectCode = row[0];
+        const subjectName = row[1];
+        if (subjectCode === 'SUBJECT CODES' && subjectName === 'SUBJECT NAME') {
+          currentDate = new Date(startDate);
+          return;
         }
-
-        if (typeof row === 'string' && row.startsWith('SEMESTER-')) {
-            currentSemester = row;
-        } else if (Array.isArray(row) && row.length >= 2 && row[0] && row[1]) {
-            const subjectCode = row[0];
-            const subjectName = row[1];
-            const formattedDate = currentDate.toLocaleDateString();
-            modifiedData.push({ date: formattedDate, subjectCode, subjectName, semester: currentSemester });
-            currentDate.setDate(currentDate.getDate() + 1);
+        const formattedDate = currentDate.toLocaleDateString();
+        while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
+          currentDate.setDate(currentDate.getDate() + 1);
         }
+  
+        modifiedData.push({ date: formattedDate, subjectCode, subjectName, semester: currentSemester });
+        currentDate.setDate(currentDate.getDate() + 1); 
+      }
     });
-
+  
     return modifiedData;
-};
+  };
+  
+  
+ 
 
 const handleGenerateSchedule = () => {
     if (!file) {
@@ -102,19 +108,19 @@ const handleGenerateSchedule = () => {
     console.log('Date:', dateString, 'isValid:', isValid);
     return isValid;
 };
-const generateExamDates = (startDate, numExams) => {
-  const examDates = [];
-  let currentDate = new Date(startDate);
-  let daysToAdd = 1; 
-  for (let i = 0; i < numExams; i++) {
-    while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
-      currentDate.setDate(currentDate.getDate() + 1); 
-    }
-    examDates.push(new Date(currentDate));
-    currentDate.setDate(currentDate.getDate() + daysToAdd);
-  }
-  return examDates;
-};
+// const generateExamDates = (startDate, numExams) => {
+//   const examDates = [];
+//   let currentDate = new Date(startDate);
+//   let daysToAdd = 1; 
+//   for (let i = 0; i < numExams; i++) {
+//     while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
+//       currentDate.setDate(currentDate.getDate() + 1); 
+//     }
+//     examDates.push(new Date(currentDate));
+//     currentDate.setDate(currentDate.getDate() + daysToAdd);
+//   }
+//   return examDates;
+// };
 
   return (
     <div style={styles.container}>
