@@ -25,29 +25,36 @@ const App = () => {
     const modifiedData = [];
     let currentDate = new Date(startDate);
     let currentSemester = '';
+
     json.forEach((row, rowIndex) => {
-      if (typeof row === 'string' && row.startsWith('SEMESTER-')) {
-        currentSemester = row;
-        currentDate = new Date(startDate); 
-      } else if (Array.isArray(row) && row.length >= 2 && row[0] && row[1]) {
-        const subjectCode = row[0];
-        const subjectName = row[1];
-        if (subjectCode === 'SUBJECT CODES' && subjectName === 'SUBJECT NAME') {
-          modifiedData.push(['', '', '']);
-          currentDate = new Date(startDate);
-          return;
+        if (typeof row === 'string' && row.startsWith('SEMESTER-')) {
+            currentSemester = row;
+            currentDate = new Date(startDate);
+        } else if (Array.isArray(row) && row.length >= 2 && row[0] && row[1]) {
+            const subjectCode = row[0];
+            const subjectName = row[1];
+            
+            if (subjectCode === 'SUBJECT CODES' && subjectName === 'SUBJECT NAME') {
+                modifiedData.push(['', '', '']);
+                modifiedData.push(['SUBJECT CODES', 'SUBJECT NAME', 'EXAM DATES']);
+                currentDate = new Date(startDate);
+                return;
+            }
+
+            // Skip Saturdays and Sundays
+            while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            const formattedDate = currentDate.toLocaleDateString();
+            modifiedData.push({ date: formattedDate, subjectCode, subjectName, semester: currentSemester });
+            currentDate.setDate(currentDate.getDate() + 1);
         }
-        const formattedDate = currentDate.toLocaleDateString();
-        while (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
-          currentDate.setDate(currentDate.getDate() + 1);
-        }
-        modifiedData.push({ date: formattedDate, subjectCode, subjectName, semester: currentSemester });
-        currentDate.setDate(currentDate.getDate() + 1); 
-      }
     });
-  
+
     return modifiedData;
-  };
+};
+
 const handleGenerateSchedule = () => {
     if (!file) {
         alert("Please upload an Excel file");
@@ -71,27 +78,28 @@ const handleGenerateSchedule = () => {
     };
     reader.readAsArrayBuffer(file);
 };
-  const generateExcel = (data) => {
-    const ws = XLSX.utils.aoa_to_sheet([
-      ['Semester', 'Subject Code', 'Subject Name', 'Date']
-    ]);
-    let rowIndex = 1; 
-    data.forEach(item => {
-      const { semester, subjectCode, subjectName, date } = item;
-      XLSX.utils.sheet_add_aoa(ws, [[semester, subjectCode, subjectName, date]], {origin: `A${rowIndex}`});
-      rowIndex++;
-    });
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Modified Schedule");
-    const wbout = XLSX.write(wb, { type: 'binary' });
-    const blob = new Blob([s2ab(wbout)], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'modified_schedule.xlsx';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+const generateExcel = (data) => {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Semester', 'Subject Code', 'Subject Name', 'Date']
+  ]);
+  let rowIndex = 1; 
+  data.forEach(item => {
+    const { semester, subjectCode, subjectName, date } = item;
+    XLSX.utils.sheet_add_aoa(ws, [[semester, subjectCode, subjectName,  date]], {origin: `A${rowIndex}`});
+    rowIndex++;
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Modified Schedule");
+  const wbout = XLSX.write(wb, { type: 'binary' });
+  const blob = new Blob([s2ab(wbout)], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'modified_schedule.xlsx';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
   const s2ab = (s) => {
     const buf = new ArrayBuffer(s.length);
     const view = new Uint8Array(buf);
