@@ -80,7 +80,7 @@ const handleGenerateSchedule = () => {
 };
 const generateExcel = (data) => {
   const ws = XLSX.utils.aoa_to_sheet([
-    ['Semester', 'Subject Code', 'Subject Name', 'Date']
+    ['S.No', 'Subject Code', 'Subject Name', 'Exam Date']
   ]);
   let rowIndex = 1; 
   data.forEach(item => {
