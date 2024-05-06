@@ -3,14 +3,14 @@ import pandas as pd
 import numpy as np
 from io import BytesIO
 
-def manipulate_excel(df1, psc_stu, term_type, holiday_df, start_date, end_date, time_slots):
+def manipulate_excel(df1, psc_stu, term_type, off_days_list, start_date, end_date, time_slots, gap_days):
     date_range = pd.date_range(start=start_date, end=end_date)
     weekdays_range = date_range[date_range.dayofweek < 5]
 
     if term_type == "Mid Term":
-        gap_between_days = 1
+        gap_between_days = gap_days
     elif term_type == "End Term":
-        gap_between_days = 2
+        gap_between_days = gap_days + 1
     else:
         st.error("Invalid term type")
 
@@ -18,8 +18,6 @@ def manipulate_excel(df1, psc_stu, term_type, holiday_df, start_date, end_date, 
         "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5,
         "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10
     }
-
-    holiday_df['Date'] = pd.to_datetime(holiday_df['Date '])
 
     date_index = 0
     prev_program_semester = None
@@ -52,7 +50,7 @@ def manipulate_excel(df1, psc_stu, term_type, holiday_df, start_date, end_date, 
                         break
                     elif weekdays_range[date_index].dayofweek < 5:
                         current_date = pd.Timestamp(weekdays_range[date_index].date())
-                        if current_date >= last_assigned_date and current_date not in holiday_df['Date'].values:
+                        if current_date >= last_assigned_date and current_date not in off_days_list:
                             df1.at[i, 'Date'] = current_date
                             last_date[program_semester] = current_date
                             df1.at[i, 'Time Slot'] = time_slots[time_slot_index]
@@ -71,18 +69,18 @@ def main():
 
     sem_data = st.file_uploader("Upload Semester Data (Excel)", type=["xlsx"])
     psc_data = st.file_uploader("Upload PSC Data (Excel)", type=["xlsx"])
-    holiday_data = st.file_uploader("Upload Holidays Data (Excel)", type=["xlsx"])
+    gap_days = st.number_input("Enter Gap Days", min_value=0, value=1)
     start_date = st.date_input("Enter Start Date")
     end_date = st.date_input("Enter End Date")
+    off_days = st.text_input("Enter Off Days (comma-separated dates in YYYY-MM-DD format)")
 
-
-    if sem_data and psc_data and holiday_data and start_date and end_date:
+    if sem_data and psc_data and start_date and end_date:
         try:
             df1 = pd.read_excel(sem_data)
             psc_stu = pd.read_excel(psc_data)
-            holiday_df = pd.read_excel(holiday_data)
-
+            off_days_list = [pd.to_datetime(date.strip()) for date in off_days.split(",") if date.strip()]
             term_type = st.radio("Select Term Type:", ("Mid Term", "End Term"))
+
             if term_type == "Mid Term":
                 time_slots = st.text_input("Enter Time Slots (comma-separated)", "9:00 - 10:30, 11:30 - 13:00, 14:00 - 15:30")
             elif term_type == "End Term":
@@ -90,9 +88,8 @@ def main():
             
             time_slots = [slot.strip() for slot in time_slots.split(",")]
 
-
             if st.button("Generate Datesheet"):
-                manipulated_df = manipulate_excel(df1, psc_stu, term_type, holiday_df,start_date, end_date,time_slots)
+                manipulated_df = manipulate_excel(df1, psc_stu, term_type, off_days_list, start_date, end_date, time_slots, gap_days)
                 st.write("Datesheet:")
                 st.write(manipulated_df)
                 output_excel = BytesIO()
