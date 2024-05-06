@@ -1,5 +1,4 @@
 streamlit
 pandas
-BytesIO
 numpy
 io
