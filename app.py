@@ -51,7 +51,7 @@ def manipulate_excel(df1, psc_stu, term_type, off_days_list, start_date, end_dat
                     elif weekdays_range[date_index].dayofweek < 5:
                         current_date = pd.Timestamp(weekdays_range[date_index].date())
                         if current_date >= last_assigned_date and current_date not in off_days_list:
-                            df1.at[i, 'Date'] = current_date
+                            df1.at[i, 'Date'] = current_date.strftime('%Y-%m-%d')
                             last_date[program_semester] = current_date
                             df1.at[i, 'Time Slot'] = time_slots[time_slot_index]
                             time_slot_index = (time_slot_index + 1) % len(time_slots)
